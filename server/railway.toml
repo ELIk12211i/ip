@@ -1,0 +1,27 @@
+# Railway deployment config for the Magnet Frame PRO licensing server.
+#
+# Railway auto-detects Python projects via NIXPACKS (looks for
+# requirements.txt / pyproject.toml / Pipfile).  This file pins the
+# start command so the server binds to Railway's dynamic $PORT instead
+# of the dev-default 8000, and wires a simple restart policy.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+# ``0.0.0.0`` is REQUIRED on Railway — binding to 127.0.0.1 would make
+# the container unreachable from the edge.  ``$PORT`` is injected by
+# Railway at boot and differs per deployment.
+startCommand = "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"
+
+# Restart the service on unexpected exit (max 10 attempts before the
+# deployment is marked failed).  Covers transient SQLite locks and
+# startup race conditions without hiding genuine bugs.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Healthcheck: Railway will hit this URL after boot and fail the
+# deploy if it doesn't return 2xx.  We use the public license
+# "whoami" endpoint which is unauthenticated and always cheap.
+healthcheckPath = "/license/whoami"
+healthcheckTimeout = 30
